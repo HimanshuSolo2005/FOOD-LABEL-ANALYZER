@@ -6,15 +6,11 @@
     <title>Food Ingredient Analyzer</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
 </head>
 <body>
     <div class="container">
         <h1>Food Ingredient Scanner</h1>
         <div class="upload-section">
-            <img id="previewImage" class="hidden" style="max-width: 100%; margin-top: 15px; border-radius: 8px;" />
-
             <label for="imageInput" class="custom-file-upload">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
                     <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
@@ -32,23 +28,13 @@
             <div id="fileInfo" class="file-selected hidden">No file selected</div>
         </div>
         <div class="results-section">
-            <div id="loadingIndicator" class="hidden loader-container">
-                <div class="loader-text">
-                    <span id="ocrProgressText">Scanning image...</span>
-                    <div class="loader-bar">
-                        <div id="ocrProgress" class="loader-progress"></div>
-                    </div>
-                </div>
+            <div id="loadingIndicator" class="hidden">
+                <div class="spinner"></div> Analyzing food ingredients...
             </div>
             <div id="extractedText"></div>
             <div id="harmfulnessResult"></div>
-            <div id="markdownContainer" class="markdown-box hidden"></div>
-
-
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <script src="js/ocr.js"></script>
     <script src="js/main.js"></script>

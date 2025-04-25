@@ -1,46 +1,21 @@
 // OCR.js
 function performOCR(imageFile) {
     return new Promise((resolve, reject) => {
-        const loader = document.getElementById('loadingIndicator');
-        const progressBar = document.getElementById('ocrProgress');
-        const progressText = document.getElementById('ocrProgressText');
-
-        loader.classList.remove('hidden');
-        progressBar.style.width = '0%';
-        progressText.textContent = 'Initializing OCR...';
-
+        document.getElementById('loadingIndicator').classList.remove('hidden');
+        
         Tesseract.recognize(
             imageFile,
             'eng',
-            {
-                logger: ({ status, progress }) => {
-                    console.log(status, progress);
-
-                    const percent = Math.floor(progress * 100);
-                    progressBar.style.width = `${percent}%`;
-                    progressText.textContent = `${status.toUpperCase()} (${percent}%)`;
-
-                    // Optional status-based color feedback
-                    if (status === 'recognizing text') {
-                        progressBar.style.backgroundColor = '#38bdf8'; // sky blue
-                    }
-                }
-            }
-        )
-        .then(({ data: { text } }) => {
-            progressText.textContent = 'Done!';
-            setTimeout(() => {
-                loader.classList.add('hidden');
-            }, 500); // smooth exit
-            resolve(text.trim());
-        })
-        .catch(error => {
-            loader.classList.add('hidden');
+            { logger: m => console.log(m) }
+        ).then(({ data: { text } }) => {
+            document.getElementById('loadingIndicator').classList.add('hidden');
+            resolve(text);
+        }).catch(error => {
+            document.getElementById('loadingIndicator').classList.add('hidden');
             reject(error);
         });
     });
 }
-
 
 // main.js
 const BACKEND_URL = 'http://localhost:5000/analyze';
