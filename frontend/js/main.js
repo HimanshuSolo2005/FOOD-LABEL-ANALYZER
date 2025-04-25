@@ -16,7 +16,7 @@ marked.setOptions({
     smartypants: true
 });
 
-// Main scan button event handler
+// Main scan button event handler - SINGLE EVENT LISTENER ONLY
 document.getElementById('scanButton').addEventListener('click', async () => {
     const imageFile = document.getElementById('imageInput').files[0];
     if (!imageFile) {
@@ -68,6 +68,23 @@ document.getElementById('scanButton').addEventListener('click', async () => {
         if (data.message || data.result || data.content || data.analysis) {
             const markdownContent = data.message || data.result || data.content || data.analysis || '';
             renderMarkdown(markdownContent);
+        }
+        
+        // Step 7: Parse ingredients and render chart
+        const ingredients = parseIngredientsFromResponse(data);
+        console.log('Parsed ingredients for chart:', ingredients);
+        
+        // Create chart container if it doesn't exist
+        if (!document.getElementById('chartContainer')) {
+            const container = document.createElement('div');
+            container.id = 'chartContainer';
+            container.className = 'chart-container';
+            document.getElementById('harmfulnessResult').appendChild(container);
+        }
+        
+        // Render chart with the ingredients data
+        if (ingredients.length > 0) {
+            renderIngredientsChart(ingredients, 'chartContainer');
         }
 
     } catch (error) {
@@ -130,6 +147,7 @@ function showRawResult(data) {
             </div>
             <div class="response-meta">Based on ingredient analysis</div>
         </div>
+        <div id="chartContainer" class="chart-container"></div>
     `;
 }
 
@@ -241,35 +259,68 @@ function showError(message) {
     `;
 }
 
-// Add to your main.js file
-// You'll need to include Chart.js in your HTML:
-// <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 // Function to parse ingredients and ratings from AI response
 function parseIngredientsFromResponse(response) {
-    // This is a simplified parser - might need adjustments based on actual API response format
+    console.log('Parsing ingredients from response:', response);
+    
+    // Default ingredients array
     let ingredients = [];
     
     // If response is already structured data
-    if (typeof response === 'object' && !Array.isArray(response)) {
-        // Try to extract ingredients if they exist in a specific format
-        if (response.ingredients) {
-            return response.ingredients;
+    if (typeof response === 'object' && response !== null && !Array.isArray(response)) {
+        // Case 1: Contains an ingredients array
+        if (Array.isArray(response.ingredients)) {
+            return response.ingredients.map(ing => {
+                // Make sure each ingredient has name and rating properties
+                if (typeof ing === 'object' && ing !== null) {
+                    return {
+                        name: ing.name || ing.ingredient || 'Unknown',
+                        rating: parseFloat(ing.rating || ing.score || ing.harmfulness || 5)
+                    };
+                }
+                return { name: String(ing), rating: 5 };
+            });
         }
         
-        // Otherwise, treat each key-value pair as ingredient-rating
+        // Case 2: Contains an key-value pairs for ingredients
+        if (response.ingredients && typeof response.ingredients === 'object') {
+            for (const [key, value] of Object.entries(response.ingredients)) {
+                if (!isNaN(value)) {
+                    ingredients.push({
+                        name: key,
+                        rating: parseFloat(value)
+                    });
+                }
+            }
+            if (ingredients.length > 0) return ingredients;
+        }
+        
+        // Case 3: Each key-value pair might be ingredient-rating
         for (const [key, value] of Object.entries(response)) {
-            if (!isNaN(value)) {
+            if (!isNaN(value) && key !== 'score' && key !== 'rating' && 
+                key !== 'harmfulness' && key !== 'status' && key !== 'id') {
                 ingredients.push({
                     name: key,
                     rating: parseFloat(value)
                 });
             }
         }
-        return ingredients;
+        
+        // Case 4: Top level score or rating
+        if (ingredients.length === 0 && 
+            (response.score !== undefined || response.rating !== undefined || 
+             response.harmfulness !== undefined)) {
+            ingredients.push({
+                name: "Overall Harmfulness",
+                rating: parseFloat(response.score || response.rating || response.harmfulness)
+            });
+        }
+        
+        // Return ingredients if we found any
+        if (ingredients.length > 0) return ingredients;
     }
     
-    // If it's a simple string, try to parse it
+    // If it's a string, try to parse it
     if (typeof response === 'string') {
         // Split by lines or commas
         const lines = response.split(/[\n,]+/);
@@ -284,14 +335,18 @@ function parseIngredientsFromResponse(response) {
                 });
             }
         }
+        
+        // Return ingredients if we found any
+        if (ingredients.length > 0) return ingredients;
     }
     
-    // If the response is a single number, assume it's overall rating
-    if (!isNaN(response) && ingredients.length === 0) {
-        ingredients.push({
-            name: "Overall Harmfulness",
-            rating: parseFloat(response)
-        });
+    // If we couldn't parse anything meaningful, return some dummy data
+    // so the chart still renders something
+    if (ingredients.length === 0) {
+        console.warn('Could not parse ingredients from response, using default data');
+        return [
+            { name: "Overall Harmfulness", rating: 5 },
+        ];
     }
     
     return ingredients;
@@ -306,8 +361,24 @@ function getRatingColorClass(rating) {
 
 // Function to render charts
 function renderIngredientsChart(ingredients, containerId) {
-    // Create canvas for the chart
+    console.log('Rendering chart with ingredients:', ingredients);
+    
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded! Make sure to include it in your HTML.');
+        document.getElementById(containerId).innerHTML = 
+            '<div class="error">Chart.js library not loaded. Please include it in your HTML.</div>';
+        return;
+    }
+    
+    // Get the container
     const container = document.getElementById(containerId);
+    if (!container) {
+        console.error(`Chart container with ID '${containerId}' not found`);
+        return;
+    }
+    
+    // Create canvas for the chart
     container.innerHTML = '<canvas id="ingredientsChart"></canvas>';
     
     // Prepare data for the chart
@@ -369,111 +440,6 @@ function renderIngredientsChart(ingredients, containerId) {
             }
         }
     });
-}
-
-// Modified event listener for the scan button
-document.getElementById('scanButton').addEventListener('click', async () => {
-    const imageFile = document.getElementById('imageInput').files[0];
-    if (!imageFile) {
-        alert('Please select an image first');
-        return;
-    }
     
-    try {
-        // Perform OCR
-        const extractedText = await performOCR(imageFile);
-        
-        // Display extracted text
-        document.getElementById('extractedText').innerHTML = `
-            <h3>Extracted Ingredients:</h3>
-            <div class="response-container">
-                <div class="response-content">${extractedText}</div>
-            </div>
-        `;
-        
-        // Send to backend
-        document.getElementById('loadingIndicator').classList.remove('hidden');
-        const response = await fetch(BACKEND_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                ingredients: extractedText
-            })
-        });
-        
-        const data = await response.json();
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        
-        // Parse ingredients and ratings
-        const ingredients = parseIngredientsFromResponse(data);
-        
-        // Calculate overall harmfulness
-        const overallHarmfulness = ingredients.length > 0
-            ? ingredients.reduce((sum, item) => sum + item.rating, 0) / ingredients.length
-            : 0;
-        
-        // Generate HTML for ingredients list
-        let ingredientsHtml = '<ul class="ingredients-list">';
-        ingredients.forEach(item => {
-            const colorClass = getRatingColorClass(item.rating);
-            const widthPercentage = (item.rating / 10) * 100;
-            
-            ingredientsHtml += `
-                <li class="ingredient-item">
-                    <span class="ingredient-name">${item.name}</span>
-                    <div class="rating-bar-container">
-                        <div class="rating-bar ${colorClass}" style="width: ${widthPercentage}%"></div>
-                    </div>
-                    <span class="ingredient-rating ${colorClass}">${item.rating}</span>
-                </li>
-            `;
-        });
-        ingredientsHtml += '</ul>';
-        
-        // Determine overall risk level
-        let riskLevel = 'Low';
-        let riskClass = 'badge-low';
-        if (overallHarmfulness > 3 && overallHarmfulness <= 7) {
-            riskLevel = 'Medium';
-            riskClass = 'badge-medium';
-        } else if (overallHarmfulness > 7) {
-            riskLevel = 'High';
-            riskClass = 'badge-high';
-        }
-        
-        // Display results
-        document.getElementById('harmfulnessResult').innerHTML = `
-            <h3>Ingredient Analysis:</h3>
-            <div class="response-container">
-                <div class="response-header">Food Harmfulness Assessment</div>
-                ${ingredientsHtml}
-                
-                <div class="summary-section">
-                    <div class="summary-title">Overall Assessment</div>
-                    <div>Average Harmfulness: <strong>${overallHarmfulness.toFixed(1)}/10</strong></div>
-                    <div>Risk Level: <span class="harmfulness-badge ${riskClass}">${riskLevel}</span></div>
-                </div>
-                
-                <div class="chart-container" id="chartContainer"></div>
-            </div>
-        `;
-        
-        // Render chart
-        renderIngredientsChart(ingredients, 'chartContainer');
-        
-    } catch (error) {
-        console.error('Error:', error);
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        document.getElementById('harmfulnessResult').innerHTML = `
-            <div class="error">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
-                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                    <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/>
-                </svg>
-                Error processing image: ${error.message}
-            </div>
-        `;
-    }
-});
+    console.log('Chart rendered successfully');
+}
