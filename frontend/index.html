@@ -4,41 +4,80 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Food Ingredient Analyzer</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
 </head>
 <body>
     <div class="container">
         <h1>Food Ingredient Scanner</h1>
         <div class="upload-section">
-            <label for="imageInput" class="custom-file-upload">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
-                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                </svg>
-                Choose Food Label Image
-            </label>
-            <input type="file" id="imageInput" accept="image/*" onchange="updateFileInfo()">
-            <button id="scanButton">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
-                    <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2H5zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4V3zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2H5z"/>
-                </svg>
-                Scan Ingredients
-            </button>
-            <div id="fileInfo" class="file-selected hidden">No file selected</div>
+            <input type="file" id="imageInput" accept="image/*">
+            <button id="scanButton">Scan Ingredients</button>
         </div>
         <div class="results-section">
-            <div id="loadingIndicator" class="hidden">
-                <div class="spinner"></div> Analyzing food ingredients...
-            </div>
+            <div id="loadingIndicator" class="hidden">Scanning...</div>
             <div id="extractedText"></div>
             <div id="harmfulnessResult"></div>
         </div>
     </div>
-    
-    <script src="js/ocr.js"></script>
-    <script src="js/main.js"></script>
 
+    <script src="js/ocr.js"></script>
+    <script>
+        const BACKEND_URL = 'http://localhost:5000/analyze';
+
+        document.getElementById('scanButton').addEventListener('click', async () => {
+            const imageFile = document.getElementById('imageInput').files[0];
+            if (!imageFile) {
+                alert('Please select an image first');
+                return;
+            }
+
+            try {
+                const extractedText = await performOCR(imageFile);
+
+                document.getElementById('extractedText').innerHTML = `
+                    <h3>Extracted Ingredients:</h3>
+                    <p>${extractedText}</p>
+                `;
+
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ingredients: extractedText })
+                });
+
+                const data = await response.json();
+                const formatted = formatMarkdownOutput(data.choices ? data.choices[0].message.content : JSON.stringify(data));
+
+                document.getElementById('harmfulnessResult').innerHTML = `
+                    <h3>Harmfulness Rating:</h3>
+                    <div class="rating">${formatted}</div>
+                `;
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('harmfulnessResult').innerHTML = `
+                    <div class="error">Error processing image: ${error.message}</div>
+                `;
+            }
+        });
+
+        function formatMarkdownOutput(text) {
+            // Convert Markdown-like syntax to styled HTML (basic support)
+            return text
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+                .replace(/\n/g, '<br>')
+                .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+                .replace(/^- (.*$)/gim, '<li>$1</li>')
+                .replace(/<li>(.*?)<\/li>/gim, '<ul><li>$1</li></ul>');
+        }
+    </script>
 </body>
 </html>

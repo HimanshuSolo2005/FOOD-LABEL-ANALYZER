@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  # You'll need to install this: pip install flask-cors
 
 def getOutput(prompt):
-    input = "detect the ingredients and rate al types of ingredients on scale of 1-10 with explaining that rating on scal of harmfulness. show only resukts fianl dont sho me whole proces. give me answer only in one word whether its healthy unhealthy for daily consumption and also explain why you showed that result in short paragraph. Maintain proper formating and also highlight import words in colour.Now group the similar ingredients and rate those group on 1-10 scale also explain the basisi of rating of scale    " + prompt
+    input = "read the ingredients and rate them on a scale of 1-10 in context of there harmfulnes in daily consumptions. At the end return wheather its healthy or unhealthy acording to you, just short you whole explaination to 90 words" + prompt
     api_key = 'c468d1c51a7ab595a04a9727d36b8f66'
     default_model = 'gpt-3.5-turbo'
     model = default_model
@@ -25,23 +25,19 @@ CORS(app)  # Enable CORS for all routes
 
 @app.route('/analyze', methods=['POST'])
 def analyze_ingredients():
-    # Get JSON data from the request
     data = request.get_json()
     
     if not data or 'ingredients' not in data:
         return jsonify({"error": "No ingredients provided in JSON"}), 400
     
     ingredients_text = data['ingredients']
-    
-    # Pass the ingredients to the API
     result = getOutput(ingredients_text)
     
-    # Return the result to the frontend
-    return jsonify(result)
-
-@app.route('/', methods=['GET'])
-def home():
-    return "Food Harmfulness API is running!"
+    # ONLY return the 'content' part if it exists
+    if isinstance(result, dict) and 'content' in result:
+        return jsonify({"content": result['content']})
+    else:
+        return jsonify({"error": "Invalid response from AI API"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
