@@ -3,8 +3,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  # You'll need to install this: pip install flask-cors
 
 def getOutput(prompt):
-    input = "read the ingredients and rate them on a scale of 1-10 in context of there harmfulnes in daily consumptions. At the end return wheather its healthy or unhealthy acording to you, just short you whole explaination to 90 words" + prompt
-    api_key = 'c468d1c51a7ab595a04a9727d36b8f66'
+    input = "read the ingredients and rate them on a scale of 1-10 in context of there harmfulnes in daily consumptions. At the end return wheather its healthy or unhealthy acording to you, in format heading with or whether its healthy or unhealthy with rating ranging from 1-10 and then in next line give about 40 words of explaination." + prompt
+    api_key = '5a8aea55aa1f0bda102221dbd728a45f'
     default_model = 'gpt-3.5-turbo'
     model = default_model
 
@@ -31,13 +31,16 @@ def analyze_ingredients():
         return jsonify({"error": "No ingredients provided in JSON"}), 400
     
     ingredients_text = data['ingredients']
+    print("🔍 Received ingredients:", ingredients_text)
+
     result = getOutput(ingredients_text)
-    
-    # ONLY return the 'content' part if it exists
+    print("🧠 AI API Response:", result)
+
     if isinstance(result, dict) and 'content' in result:
         return jsonify({"content": result['content']})
     else:
-        return jsonify({"error": "Invalid response from AI API"}), 500
+        return jsonify({"error": "Invalid response from AI API", "result": result}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
