@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  # You'll need to install this: pip install flask-cors
 
 def getOutput(prompt):
-    input = "read the ingredients and rate them on a scale of 1-10 in context of there harmfulnes in daily consumptions. At the end return wheather its healthy or unhealthy acording to you, in format heading with or whether its healthy or unhealthy with rating ranging from 1-10 and then in next line give about 40 words of explaination." + prompt
+    input = "read the ingredients and rate them on a scale of 1-10 in context of there harmfulnes in daily consumptions acording to you. At the end return wheather its healthy or unhealthy acording to you, in format heading with or whether its healthy or not .and then in next line give about 40 words of explaination. if its unhealthy give rarting 1-5" + prompt
     api_key = '5a8aea55aa1f0bda102221dbd728a45f'
     default_model = 'gpt-3.5-turbo'
     model = default_model

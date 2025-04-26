@@ -46,24 +46,35 @@ export default function App() {
   const analyzeIngredients = async () => {
     if (!extractedText) return;
     setLoading(true);
+  
+    const ingredients = extractedText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line !== '');
+  
     try {
-      const response = await axios.post('http://localhost:5000/analyze', {
-        ingredients: extractedText,
+      const analysisPromises = ingredients.map(async (ingredient) => {
+        const response = await axios.post('http://localhost:5000/analyze', {
+          ingredients: ingredient,
+        });
+        return response.data.content;
       });
-      const content = response.data.content;
-
-      // Split analysis into ingredients and final summary
-      const lines = content.split('\n').map(line => line.trim()).filter(line => line !== '');
-      const ingredientsWithScore = lines.filter(line => line.includes('-') && line.includes('/10'));
-      const finalSummary = lines.find(line => !line.includes('/10') && !line.includes('-')) || '';
-
+  
+      const results = await Promise.all(analysisPromises);
+      const processedResults = results.map(result => result.trim());
+  
+      const ingredientsWithScore = processedResults.filter(line => line.includes('-') && line.includes('/10'));
+      const finalSummary = "Individual ingredient analysis completed."; // Static summary or custom
+  
       setAnalysisList(ingredientsWithScore);
       setSummary(finalSummary);
     } catch (error) {
       console.error('Analysis Error:', error);
     }
+  
     setLoading(false);
   };
+  
 
   const getColorClass = (score) => {
     if (score <= 3) return 'bg-green-100 text-green-700';
